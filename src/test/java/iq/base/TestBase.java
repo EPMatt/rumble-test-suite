@@ -24,7 +24,7 @@ public class TestBase {
     protected final String testCaseName;
     private final boolean useXQueryParser;
     /** The configuration for the Rumble runtimes spinned up for this test case. */
-    private final RumbleRuntimeConfiguration rumbleConfig;
+    private RumbleRuntimeConfiguration rumbleConfig;
 
     public TestBase(TestCase testCase, String testSetName, String testCaseName, boolean useXQueryParser) {
         this.testCase = testCase;
@@ -65,6 +65,7 @@ public class TestBase {
 
         XdmNode assertion = this.testCase.assertion;
         Environment environment = this.testCase.environment;
+        applyXmlVersionDependencyToConfig();
         Rumble rumble = new Rumble(rumbleConfig);
         System.out.println("[[originalAssertion|" + assertion + "]]");
         try {
@@ -163,6 +164,7 @@ public class TestBase {
                 break;
             case "all-of":
                 for (XdmNode individualAssertion : assertion.children("*")) {
+                    applyXmlVersionDependencyToConfig();
                     Rumble subRumble = new Rumble(rumbleConfig);
                     checkAssertion(convertedTestString, individualAssertion, subRumble, environment);
                 }
@@ -171,6 +173,7 @@ public class TestBase {
                 boolean success = false;
                 List<Throwable> errors = new ArrayList<>();
                 for (XdmNode individualAssertion : assertion.children("*")) {
+                    applyXmlVersionDependencyToConfig();
                     Rumble subRumble = new Rumble(rumbleConfig);
                     try {
                         checkAssertion(convertedTestString, individualAssertion, subRumble, environment);
@@ -311,6 +314,21 @@ public class TestBase {
         return (this.useXQueryParser ? Constants.xQuerySkipReasonErrorCodes : Constants.skipReasonErrorCodes).contains(
             errorCode
         );
+    }
+
+
+    private void applyXmlVersionDependencyToConfig() {
+        // default fallback
+        this.rumbleConfig.setXmlVersion("1.0");
+
+        String v = this.testCase.xmlVersion;
+        if (v != null) v = v.trim();
+
+        if ("1.1".equals(v)) {
+            this.rumbleConfig.setXmlVersion("1.1");
+        } else if ("1.0".equals(v)) {
+            this.rumbleConfig.setXmlVersion("1.0");
+        }
     }
 
 }

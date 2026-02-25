@@ -67,6 +67,19 @@ public class CaseCollector {
 
     }
 
+    private String extractXmlVersion(XdmNode testCase) {
+        List<XdmNode> dependencies = new ArrayList<>(testCase.select(Steps.child("dependency")).asList());
+        dependencies.addAll(testCase.getParent().select(Steps.child("dependency")).asList());
+
+        for (XdmNode dep : dependencies) {
+            String type = dep.attribute("type");
+            if ("xml-version".equals(type)) {
+                return dep.attribute("value");
+            }
+        }
+        return null; // fallback -> default (according to tests: XML10)
+    }
+
     private void processCatalog(String testFolder) throws SaxonApiException {
         File catalogFile = new File(testsRepositoryDirectoryPath.resolve("catalog.xml").toString());
         Processor testDriverProcessor = new Processor(false);
@@ -140,7 +153,7 @@ public class CaseCollector {
         ) {
             allTests.add(
                 new Object[] {
-                    new TestCase(null, null, "Testcase/set on skiplist", null),
+                    new TestCase(null, null, "Testcase/set on skiplist", null, null),
                     currentTestSet,
                     currentTestCase }
             );
@@ -179,13 +192,14 @@ public class CaseCollector {
         if (caseDependency != null) {
             skipReason = "dependency " + caseDependency;
         }
+        String xmlVersion = extractXmlVersion(testCase);
 
         XdmNode assertion = (XdmNode) xpc.evaluateSingle("result/*[1]", testCase);
         String testString = testCase.select(Steps.child("test")).asNode().getStringValue();
 
         allTests.add(
             new Object[] {
-                new TestCase(testString, assertion, skipReason, environment),
+                new TestCase(testString, assertion, skipReason, environment, xmlVersion),
                 currentTestSet,
                 currentTestCase }
         );
