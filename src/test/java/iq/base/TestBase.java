@@ -159,8 +159,18 @@ public class TestBase {
                 break;
             case "assert-string-value":
                 results = runQuery(convertedTestString, rumble, environment);
-                String serialized = results.stream().map(Item::serialize).collect(Collectors.joining(" "));
-                assertEquals("Wrong string value", assertion.getStringValue(), serialized);
+                String actual = results.stream().map(Item::serialize).collect(Collectors.joining(" "));
+
+                String expected = assertion.getStringValue();
+
+                boolean normalizeSpace = "true".equals(assertion.attribute("normalize-space"));
+
+                if (normalizeSpace) {
+                    actual = normalizeSpace(actual);
+                    expected = normalizeSpace(expected);
+                }
+
+                assertEquals("Wrong string value", expected, actual);
                 break;
             case "all-of":
                 for (XdmNode individualAssertion : assertion.children("*")) {
@@ -329,6 +339,13 @@ public class TestBase {
         } else if ("1.0".equals(v)) {
             this.rumbleConfig.setXmlVersion("1.0");
         }
+    }
+
+    private static String normalizeSpace(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.replaceAll("\\s+", " ").trim();
     }
 
 }
