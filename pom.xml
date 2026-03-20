@@ -83,7 +83,7 @@
             <artifactId>rumbledb</artifactId>
             <version>2.0.0</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/rumble/target/rumbledb-2.0.0-jar-with-dependencies.jar</systemPath>
+            <systemPath>${project.basedir}/rumble/target/rumbledb-2.1.0-jar-with-dependencies.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
