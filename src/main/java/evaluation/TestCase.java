@@ -13,7 +13,13 @@ public class TestCase {
     public final String xmlVersion;
     public Environment environment;
 
-    public TestCase(String testString, XdmNode assertion, String skipReason, Environment environment, String xmlVersion) {
+    public TestCase(
+            String testString,
+            XdmNode assertion,
+            String skipReason,
+            Environment environment,
+            String xmlVersion
+    ) {
         this.testString = testString;
         this.assertion = assertion;
         this.skipReason = skipReason;

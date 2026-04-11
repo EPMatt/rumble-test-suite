@@ -95,7 +95,6 @@ public class TestBase {
         if (environment != null) {
             query = environment.applyToQuery(query);
         }
-        System.out.println("[[query|" + query + "]]");
         if (!useXQueryParser) {
             query = Converter.convert(query);
         }
@@ -332,7 +331,8 @@ public class TestBase {
         this.rumbleConfig.setXmlVersion("1.0");
 
         String v = this.testCase.xmlVersion;
-        if (v != null) v = v.trim();
+        if (v != null)
+            v = v.trim();
 
         if ("1.1".equals(v)) {
             this.rumbleConfig.setXmlVersion("1.1");
