@@ -161,8 +161,6 @@ public class Environment {
      * This method takes a query and modifies it such that it executes inside the environment. It adds a context-item
      * declaration, variable declarations and replaces URIs with the right filepaths.
      *
-     * It intentionally does NOT prepend namespace or decimal-format declarations.
-     * Use prependProlog() for that.
      *
      * @param query contains the query that wants to be executed.
      * @return a String containing the updated query with the context-item, params and resources set.
