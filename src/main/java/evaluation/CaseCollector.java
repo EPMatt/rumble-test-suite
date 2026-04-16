@@ -309,11 +309,17 @@ public class CaseCollector {
                 }
                 // Check if not the XSLT (isApplicable original method)
                 case "spec": {
-                    // XP30+,XQ10+,XQ30+,XQ30,XQ31+,XP31+,XP31,XQ31,XP20,XQ10,XP20+,XP30 is ok, XT30+
+                    // XP30+,XQ10+,XQ30+,XQ31+,XP31+,XP31,XQ31,XP20,XQ10,XP20+ is ok, XT30+
                     // not
                     // if (!value.contains("XSLT") && !value.contains("XT")) {
                     if (!(value.contains("XQ") || value.contains("XP"))) {
                         return type + " " + value;
+                    }
+                    // Skip XP30, XQ30
+                    for (String spec : value.trim().split("\\s+")) {
+                        if ("XP30".equals(spec) || "XQ30".equals(spec)) {
+                            return type + " " + value;
+                        }
                     }
 
                     // We can think about adding this because some tests have two versions and we generally only try to
