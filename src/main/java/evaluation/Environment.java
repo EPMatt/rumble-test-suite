@@ -1,8 +1,11 @@
 package evaluation;
 
+import net.sf.saxon.s9api.Axis;
 import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XdmSequenceIterator;
 import net.sf.saxon.s9api.streams.Steps;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -13,10 +16,19 @@ public class Environment {
     private final Map<String, String> resourceLookup = new HashMap<>();
     private final Map<String, String> paramLookup = new HashMap<>();
     private final Map<String, String> roleLookup = new HashMap<>();
+
+    private final Map<String, String> namespaceLookup = new HashMap<>();
+
+
+    private final List<String> decimalFormatDeclarations = new ArrayList<>();
+
     private boolean unsupportedCollation = false;
 
     public Environment(XdmNode environmentNode, Path envPath) {
         initParams(environmentNode);
+        initNamespaces(environmentNode);
+        initDecimalFormats(environmentNode);
+
         Iterator<XdmNode> collation = environmentNode.children("collation").iterator();
         if (
             collation.hasNext()
@@ -28,7 +40,6 @@ public class Environment {
         }
         initResources(environmentNode, envPath);
         initSources(environmentNode, envPath);
-
     }
 
     private void initParams(XdmNode environmentNode) {
@@ -39,6 +50,84 @@ public class Environment {
             String declared = param.attribute("declared"); // TODO: implement if needed
             paramLookup.put(name, select);
         }
+    }
+
+    private void initNamespaces(XdmNode environmentNode) {
+        for (XdmNode namespace : environmentNode.children("namespace")) {
+            String prefix = namespace.attribute("prefix");
+            String uri = namespace.attribute("uri");
+            if (prefix != null && uri != null) {
+                namespaceLookup.put(prefix, uri);
+            }
+        }
+    }
+
+
+    private void initDecimalFormats(XdmNode environmentNode) {
+        for (XdmNode decimalFormat : environmentNode.children("decimal-format")) {
+            StringBuilder sb = new StringBuilder();
+
+            String name = decimalFormat.attribute("name");
+            if (name == null || name.isBlank()) {
+                sb.append("declare default decimal-format");
+            } else {
+                sb.append("declare decimal-format ").append(name);
+
+                int colon = name.indexOf(':');
+                if (colon > 0) {
+                    String prefix = name.substring(0, colon);
+                    String uri = resolveNamespaceUri(decimalFormat, prefix);
+                    if (uri != null && !namespaceLookup.containsKey(prefix)) {
+                        namespaceLookup.put(prefix, uri);
+                    }
+                }
+            }
+
+            appendDecimalFormatAttribute(decimalFormat, sb, "decimal-separator");
+            appendDecimalFormatAttribute(decimalFormat, sb, "grouping-separator");
+            appendDecimalFormatAttribute(decimalFormat, sb, "zero-digit");
+            appendDecimalFormatAttribute(decimalFormat, sb, "digit");
+            appendDecimalFormatAttribute(decimalFormat, sb, "minus-sign");
+            appendDecimalFormatAttribute(decimalFormat, sb, "percent");
+            appendDecimalFormatAttribute(decimalFormat, sb, "per-mille");
+            appendDecimalFormatAttribute(decimalFormat, sb, "pattern-separator");
+            appendDecimalFormatAttribute(decimalFormat, sb, "exponent-separator");
+            appendDecimalFormatAttribute(decimalFormat, sb, "infinity");
+            appendDecimalFormatAttribute(decimalFormat, sb, "NaN");
+
+            sb.append(";");
+            decimalFormatDeclarations.add(sb.toString());
+        }
+    }
+
+
+    private void appendDecimalFormatAttribute(XdmNode decimalFormat, StringBuilder sb, String attributeName) {
+        String value = decimalFormat.attribute(attributeName);
+        if (value != null) {
+            sb.append(" ")
+                .append(attributeName)
+                .append(" = ")
+                .append(toXQueryStringLiteral(value));
+        }
+    }
+
+    private String toXQueryStringLiteral(String s) {
+        return "\"" + s.replace("\"", "\"\"") + "\"";
+    }
+
+
+    private String resolveNamespaceUri(XdmNode node, String prefix) {
+        XdmSequenceIterator<XdmNode> namespaces = node.axisIterator(Axis.NAMESPACE);
+        while (namespaces.hasNext()) {
+            XdmNode nsNode = namespaces.next();
+            if (nsNode.getNodeName() != null) {
+                String nsPrefix = nsNode.getNodeName().getLocalName();
+                if (prefix.equals(nsPrefix)) {
+                    return nsNode.getStringValue();
+                }
+            }
+        }
+        return null;
     }
 
     private void initResources(XdmNode environmentNode, Path envPath) {
@@ -71,12 +160,13 @@ public class Environment {
     /**
      * This method takes a query and modifies it such that it executes inside the environment. It adds a context-item
      * declaration, variable declarations and replaces URIs with the right filepaths.
-     * 
+     *
      * @param query contains the query that wants to be executed.
      * @return a String containing the updated query with the context-item, params and resources set.
      */
     public String applyToQuery(String query) {
         StringBuilder newQuery = new StringBuilder();
+        newQuery.append(createDecimalFormatAndNamespaceProlog());
         for (Map.Entry<String, String> r : roleLookup.entrySet()) {
             String role = r.getKey();
             String file = r.getValue();
@@ -101,6 +191,28 @@ public class Environment {
             }
         }
         return newQueryString;
+    }
+
+
+    public String createDecimalFormatAndNamespaceProlog() {
+        if (namespaceLookup.isEmpty() && decimalFormatDeclarations.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder prolog = new StringBuilder();
+
+        for (Map.Entry<String, String> namespace : namespaceLookup.entrySet()) {
+            prolog.append("declare namespace ")
+                .append(namespace.getKey())
+                .append(" = ")
+                .append(toXQueryStringLiteral(namespace.getValue()))
+                .append(";\n");
+        }
+
+        for (String decimalFormatDeclaration : decimalFormatDeclarations) {
+            prolog.append(decimalFormatDeclaration).append("\n");
+        }
+        return prolog.toString();
     }
 
     public boolean isUnsupportedCollation() {
